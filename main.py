@@ -173,3 +173,15 @@ def generate_keypair(p=generate_prime(10, 1000), q=generate_prime(10, 1000), e=0
             e = random.randrange(1, phi)
     d = mod_inverse(e, phi)
     return (e, n), (d, n)
+
+
+def diffie_hellman(g: int, p: int, alice_private: int, bob_private: int) -> tuple:
+    alice_public = pow(g, alice_private, p)
+    bob_public = pow(g, bob_private, p)
+
+    secret_alice = pow(bob_public, alice_private, p)
+    secret_bob = pow(alice_public, bob_private, p)
+
+    assert secret_alice == secret_bob, "Fehler: Die berechneten Geheimnisse stimmen nicht überein!"
+
+    return alice_public, bob_public, secret_alice
