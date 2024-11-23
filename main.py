@@ -221,6 +221,7 @@ def diffie_hellman_brute_force(g: int, p: int, alice_public: int) -> int:
 # calculate amount of additions, doubles and the operations for a scalar multiplication
 def analyze_scalar_multiplication(number: int):
     binary = bin(number)[2:]
+    print(binary)
 
     additions = 0
     doubles = 0
@@ -253,3 +254,5 @@ def calculate_amount_key_exchanges_symmetric(n: int):
 
 def calculate_amount_key_exchanges_asymmetric(n: int):
     return n
+
+analyze_scalar_multiplication(150)
