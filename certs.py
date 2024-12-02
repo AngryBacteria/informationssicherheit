@@ -4,6 +4,8 @@ from cryptography.hazmat.primitives import hashes
 with open("ca_cert.pem", "rb") as f:
     certificate_pem = f.read()
 
+# calculate sha256 fingerprint on "to be signed" part of certificate
+
 certificate = x509.load_pem_x509_certificate(certificate_pem)
 
 # Get the part of the certificate which we want to hash
