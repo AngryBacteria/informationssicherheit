@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import math
 import random
 from math import log2, ceil
@@ -255,4 +257,23 @@ def calculate_amount_key_exchanges_symmetric(n: int):
 def calculate_amount_key_exchanges_asymmetric(n: int):
     return n
 
-analyze_scalar_multiplication(150)
+
+def hotp(secret, count, digits=6):
+    # Convert counter to 8-byte big-endian representation
+    counter = count.to_bytes(8, byteorder="big")
+    # Create HMAC-SHA1 hash
+    hasher = hmac.new(bytes(secret.encode()), counter, hashlib.sha1)
+    hmac_hash = bytearray(hasher.digest())
+    # Get offset based on last nibble
+    offset = hmac_hash[-1] & 0xF
+    # Generate 4-byte code using offset
+    code = (
+            (hmac_hash[offset] & 0x7F) << 24 |
+            (hmac_hash[offset + 1] & 0xFF) << 16 |
+            (hmac_hash[offset + 2] & 0xFF) << 8 |
+            (hmac_hash[offset + 3] & 0xFF)
+    )
+    # Return truncated code
+    return code % (10 ** digits)
+
+print(hotp("0123456789012345678912", 5))
