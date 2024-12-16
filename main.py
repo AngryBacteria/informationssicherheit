@@ -4,14 +4,16 @@ import math
 import random
 from math import log2, ceil
 from typing import Union, Literal
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
 
 NumberSystem = Literal["hex", "dec", "bin", "oct"]
 
 
 def convert_number(
-        number: Union[str, int],
-        from_system: Literal["hex", "dec", "bin", "oct"],
-        to_system: NumberSystem,
+    number: Union[str, int],
+    from_system: Literal["hex", "dec", "bin", "oct"],
+    to_system: NumberSystem,
 ) -> str:
     if isinstance(number, str):
         number = number.replace(" ", "")
@@ -44,7 +46,7 @@ def convert_number(
 
 # Calculate the number of possibilities for a password of a given length and number of unique characters
 def password_possibilities(length: int, unique_characters: int) -> int:
-    return unique_characters ** length
+    return unique_characters**length
 
 
 # Calculate the entropy of a password with a given length and number of unique characters
@@ -106,9 +108,9 @@ def decrypt_xor(ciphertext: bytes, key: int):
 # Brute force a cipher text by trying all different keys in a range from 0 to 256
 # Uses a hex string as input
 def brute_force_xor_cypher(
-        cypher_text="f7 d0 d8 d1 cc d3 df ca d7 d1 d0 cd cd d7 dd d6 db cc d6 db d7 ca 9e fc ea e6 86 8e 88 8b 9e "
-                    "8c 8c 91 8c 8d",
-        filter_non_ascii=True,
+    cypher_text="f7 d0 d8 d1 cc d3 df ca d7 d1 d0 cd cd d7 dd d6 db cc d6 db d7 ca 9e fc ea e6 86 8e 88 8b 9e "
+    "8c 8c 91 8c 8d",
+    filter_non_ascii=True,
 ):
     # Hexadezimal-String in Bytes umwandeln
     ciphertext = bytes.fromhex(cypher_text)
@@ -118,7 +120,7 @@ def brute_force_xor_cypher(
         if filter_non_ascii:
             plaintext = decrypt_xor(ciphertext, key)
             if all(
-                    32 <= ord(c) <= 126 or ord(c) in [10, 13] for c in plaintext
+                32 <= ord(c) <= 126 or ord(c) in [10, 13] for c in plaintext
             ):  # Prüfen auf druckbare ASCII-Zeichen
                 print(f"Schlüssel {key}: {plaintext}")
         else:
@@ -137,7 +139,7 @@ def xor_bitwise(a: int, b: int, as_binary=False):
 def is_prime(n):
     if n < 2:
         return False
-    for i in range(2, int(n ** 0.5) + 1):
+    for i in range(2, int(n**0.5) + 1):
         if n % i == 0:
             return False
     return True
@@ -204,7 +206,7 @@ def diffie_hellman(g: int, p: int, alice_private: int, bob_private: int) -> tupl
     secret_bob = pow(alice_public, bob_private, p)
 
     assert (
-            secret_alice == secret_bob
+        secret_alice == secret_bob
     ), "Fehler: Die berechneten Geheimnisse stimmen nicht überein!"
 
     print(f"Alice: {alice_public}, Bob: {bob_public}, Geheimnis: {secret_alice}")
@@ -258,7 +260,68 @@ def calculate_amount_key_exchanges_asymmetric(n: int):
     return n
 
 
-def hotp(secret, count, digits=6):
+def generate_tbs_hash():
+    """
+    Generate the TBS hash of the certificate (ca_cert.pem file) using SHA256
+    """
+    with open("ca_cert.pem", "rb") as f:
+        certificate_pem = f.read()
+
+    # calculate sha256 fingerprint on "to be signed" part of certificate
+
+    certificate = x509.load_pem_x509_certificate(certificate_pem)
+
+    # Get the part of the certificate which we want to hash
+    tbs_hash = certificate.tbs_certificate_bytes
+
+    # Create an object which will be used to hash the certificate
+    tbs_hash_value = hashes.Hash(hashes.SHA256())
+
+    # Feed the bytes of the certificate to the hash object
+    tbs_hash_value.update(tbs_hash)
+
+    # Calculate the hash
+    tbs_hash_digest = tbs_hash_value.finalize()
+
+    # Convert to hex for readable format
+    tbs_hash_hex = tbs_hash_digest.hex()
+    print(f"TBS Certificate Hash (SHA256): {tbs_hash_hex}")
+
+
+def generate_certificate_hash():
+    """
+    Generate the SHA1 fingerprint of the whole certificate (ca_cert.pem file)
+    :return:
+    """
+    with open("ca_cert.pem", "rb") as f:
+        certificate_pem = f.read()
+
+    # calculate sha fingeprint on whole certificate
+
+    certificate = x509.load_pem_x509_certificate(certificate_pem)
+
+    # Create SHA1 hash object instead of SHA256
+    sha1_hash = hashes.Hash(hashes.SHA1())
+
+    # Use the entire certificate bytes instead of just tbs_certificate_bytes
+    sha1_hash.update(certificate.public_bytes(serialization.Encoding.DER))
+
+    # Calculate the hash
+    sha1_digest = sha1_hash.finalize()
+
+    # Convert to hex
+    sha1_hex = sha1_digest.hex()
+    print(f"Certificate SHA1 Fingerprint: {sha1_hex}")
+
+
+def hotp(secret: str, count: int, digits=6):
+    """
+    Generate a HOTP code based on the secret and counter
+    :param secret: The secret key (in string format)
+    :param count: The counter value
+    :param digits: The number of digits of the code
+    :return:
+    """
     # Convert counter to 8-byte big-endian representation
     counter = count.to_bytes(8, byteorder="big")
     # Create HMAC-SHA1 hash
@@ -268,12 +331,10 @@ def hotp(secret, count, digits=6):
     offset = hmac_hash[-1] & 0xF
     # Generate 4-byte code using offset
     code = (
-            (hmac_hash[offset] & 0x7F) << 24 |
-            (hmac_hash[offset + 1] & 0xFF) << 16 |
-            (hmac_hash[offset + 2] & 0xFF) << 8 |
-            (hmac_hash[offset + 3] & 0xFF)
+        (hmac_hash[offset] & 0x7F) << 24
+        | (hmac_hash[offset + 1] & 0xFF) << 16
+        | (hmac_hash[offset + 2] & 0xFF) << 8
+        | (hmac_hash[offset + 3] & 0xFF)
     )
     # Return truncated code
-    return code % (10 ** digits)
-
-print(hotp("0123456789012345678912", 5))
+    return code % (10**digits)
