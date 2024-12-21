@@ -354,3 +354,7 @@ def totp(secret: str, time_step=30, digits=6, unix_timestamp=int(time.time())):
     counter = unix_timestamp // time_step
     # Generate HOTP code
     return hotp(secret, counter, digits)
+
+
+
+# TODO MAIL
