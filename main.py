@@ -7,6 +7,7 @@ from math import log2, ceil
 from typing import Union, Literal
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
+import requests
 
 NumberSystem = Literal["hex", "dec", "bin", "oct"]
 
@@ -45,6 +46,13 @@ def convert_number(
         raise ValueError("Invalid 'to' number system")
 
 
+def every_nth_character(text: str, n: int) -> str:
+    """
+    Returns every nth character of a string, including the first character
+    """
+    return text[0::n]
+
+
 # Calculate the number of possibilities for a password of a given length and number of unique characters
 def password_possibilities(length: int, unique_characters: int) -> int:
     return unique_characters ** length
@@ -56,6 +64,18 @@ def password_entropy(length: int, unique_characters: int, ceil_value=True) -> fl
     if ceil_value:
         return ceil(value)
     return value
+
+
+def check_ean13_checksum(code: str) -> bool:
+    """
+    Check if an EAN-13 code has a valid checksum (the checksum at the end needs to be included in the input)
+    """
+    checksum = 10 - sum(
+        (int(code[i]) if i % 2 == 0 else int(code[i]) * 3) for i in range(12)
+    ) % 10
+
+    # Check if the checksum is correct
+    return checksum == int(code[12])
 
 
 # Checks if a number is valid by the luhn algorithm
@@ -84,8 +104,10 @@ def is_valid_luhn(number: str | int) -> bool:
     return total % 10 == 0
 
 
-# Checks if a digit is valid by the luhn algorithm
-def generate_check_digit(partial_number: str | int) -> str:
+def generate_luhn_checkdigit(partial_number: str | int) -> str:
+    """
+    Generate the check digit for a partial number (without the check digit)
+    """
     partial_number = str(partial_number)
     for check_digit in range(10):
         if is_valid_luhn(partial_number + str(check_digit)):
@@ -272,7 +294,7 @@ def generate_tbs_hash():
 
     certificate = x509.load_pem_x509_certificate(certificate_pem)
 
-    # Get the part of the certificate which we want to hash
+    # Get the part of the certificate which we want to hash, is already in DER encoding internally
     tbs_hash = certificate.tbs_certificate_bytes
 
     # Create an object which will be used to hash the certificate
@@ -315,6 +337,18 @@ def generate_certificate_hash():
     print(f"Certificate SHA1 Fingerprint: {sha1_hex}")
 
 
+def get_headers_of_url(url: str):
+    """
+    Get the headers of a URL
+    :param url: The URL to get the headers from
+    """
+    response = requests.head(url)
+    headers = response.headers
+
+    for key, value in headers.items():
+        print(f"{key}: {value}")
+
+
 def hotp(secret: str, count: int, digits=6):
     """
     Generate a HOTP code based on the secret and counter
@@ -354,7 +388,5 @@ def totp(secret: str, time_step=30, digits=6, unix_timestamp=int(time.time())):
     counter = unix_timestamp // time_step
     # Generate HOTP code
     return hotp(secret, counter, digits)
-
-
 
 # TODO MAIL
