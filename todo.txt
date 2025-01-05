@@ -1,10 +1,11 @@
-- SKYTALE with key
-- Monoalphabetisch knacken --> Klassische_Kryptoanalyse.pdf Page 9 --> Zeug mit Häufigkeitsanalyse, Kappa test und so weiter
-- Vigenere knacken --> Klassische_Kryptoanalyse.pdf Page 13 --> Zeug mit Häufigkeitsanalyse, Kappa test und so weiter
-- Verschlüsselung anhand von chiffrat erkennen?
-- RSA Chosen Cipher Text Attack --> Asymmetrische_Kryptographie.pdf p.23
-- Decide for which of the following recipients the message is encrypted --> Mail Aufgaben
-- Wie lesen wir am besten die TLS Infos einer Domain aus?
-
 Für mich:
 - Alles ab ECC (eventuell noch RSA) genauer anschauen (besonders tls).
+- Diffie-Hellman genauer anschauen
+- Monoalphabetisch knacken --> Klassische_Kryptoanalyse.pdf Page 9 --> Zeug mit Häufigkeitsanalyse, Kappa test und so weiter
+- Vigenere knacken --> Klassische_Kryptoanalyse.pdf Page 13 --> Zeug mit Häufigkeitsanalyse, Kappa test und so weiter
+- RSA Chosen Cipher Text Attack --> Asymmetrische_Kryptographie.pdf p.23
+
+Haben wir nicht geschafft:
+- Kryptographische Konzepte Aufgabe 6
+- Symmetrische Verschlüsselung Aufgabe 5
+- Secure Mail 4 (Decide for which of the following recipients the message is encrypted)

@@ -2,20 +2,22 @@ import hashlib
 import hmac
 import math
 import random
+import socket
+import ssl
 import time
 from math import log2, ceil
 from typing import Union, Literal
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import serialization
 import requests
 
 NumberSystem = Literal["hex", "dec", "bin", "oct"]
 
 
 def convert_number(
-        number: Union[str, int],
-        from_system: Literal["hex", "dec", "bin", "oct"],
-        to_system: NumberSystem,
+    number: Union[str, int],
+    from_system: Literal["hex", "dec", "bin", "oct"],
+    to_system: NumberSystem,
 ) -> str:
     if isinstance(number, str):
         number = number.replace(" ", "")
@@ -46,40 +48,56 @@ def convert_number(
         raise ValueError("Invalid 'to' number system")
 
 
-def every_nth_character(text: str, n: int) -> str:
+def get_every_nth_character(text: str, n: int, offset: 0) -> str:
     """
     Returns every nth character of a string, including the first character
     """
-    return text[0::n]
+    formated_text = text[offset::n]
+    print(formated_text)
+    return formated_text
 
 
-# Calculate the number of possibilities for a password of a given length and number of unique characters
-def password_possibilities(length: int, unique_characters: int) -> int:
-    return unique_characters ** length
+def calculate_password_possibilities(length: int, unique_characters: int) -> int:
+    """
+    Calculate the number of possibilities for a password of a given length and number of unique characters
+    """
+    print(f"Possibilities: {unique_characters**length}")
+    return unique_characters**length
 
 
-# Calculate the entropy of a password with a given length and number of unique characters
-def password_entropy(length: int, unique_characters: int, ceil_value=True) -> float:
-    value = length * log2(unique_characters)
+def calculate_password_entropy(
+    length: int, unique_characters: int, ceil_value=True
+) -> float:
+    """
+    Calculate the entropy of a password with a given length and number of unique characters
+    """
+    entropy = length * log2(unique_characters)
     if ceil_value:
-        return ceil(value)
-    return value
+        entropy = ceil(entropy)
+    print(f"Entropy: {entropy}")
+    return entropy
 
 
 def check_ean13_checksum(code: str) -> bool:
     """
     Check if an EAN-13 code has a valid checksum (the checksum at the end needs to be included in the input)
     """
-    checksum = 10 - sum(
-        (int(code[i]) if i % 2 == 0 else int(code[i]) * 3) for i in range(12)
-    ) % 10
+    checksum = (
+        10
+        - sum((int(code[i]) if i % 2 == 0 else int(code[i]) * 3) for i in range(12))
+        % 10
+    )
 
     # Check if the checksum is correct
-    return checksum == int(code[12])
+    valid = checksum == int(code[12])
+    print(f"Checksum: {checksum}, Valid: {valid}")
+    return valid
 
 
-# Checks if a number is valid by the luhn algorithm
 def is_valid_luhn(number: str | int) -> bool:
+    """
+    Checks if a number is valid by the luhn algorithm
+    """
     # Remove any spaces or hyphens
     number = str(number)
     number = number.replace(" ", "").replace("-", "")
@@ -101,7 +119,9 @@ def is_valid_luhn(number: str | int) -> bool:
     total = sum(digits)
 
     # The number is valid if the sum is divisible by 10
-    return total % 10 == 0
+    valid = total % 10 == 0
+    print(f"Total: {total}, Valid: {valid}")
+    return valid
 
 
 def generate_luhn_checkdigit(partial_number: str | int) -> str:
@@ -111,16 +131,21 @@ def generate_luhn_checkdigit(partial_number: str | int) -> str:
     partial_number = str(partial_number)
     for check_digit in range(10):
         if is_valid_luhn(partial_number + str(check_digit)):
+            print(f"Check digit: {check_digit}")
+            print(f"Full number: {partial_number + str(check_digit)}")
             return partial_number + str(check_digit)
 
 
-# Generates numbers by using a linear congruential generator
 def linear_congruential_generator(init_x: int, a=6, b=0, m=13, n=1):
+    """
+    Generates numbers by using a linear congruential generator
+    """
     output = []
     x = init_x
     for _ in range(n):
         output.append(x)
         x = (a * x + b) % m
+    print(output)
     return output
 
 
@@ -128,13 +153,14 @@ def decrypt_xor(ciphertext: bytes, key: int):
     return "".join(chr(c ^ key) for c in ciphertext)
 
 
-# Brute force a cipher text by trying all different keys in a range from 0 to 256
-# Uses a hex string as input
 def brute_force_xor_cypher(
-        cypher_text="f7 d0 d8 d1 cc d3 df ca d7 d1 d0 cd cd d7 dd d6 db cc d6 db d7 ca 9e fc ea e6 86 8e 88 8b 9e "
-                    "8c 8c 91 8c 8d",
-        filter_non_ascii=True,
+    cypher_text="f7 d0 d8 d1 cc d3 df ca d7 d1 d0 cd cd d7 dd d6 db cc d6 db d7 ca 9e fc ea e6 86 8e 88 8b 9e "
+    "8c 8c 91 8c 8d",
+    filter_non_ascii=True,
 ):
+    """
+    Brute force a cipher text by trying all different keys in a range from 0 to 256. Uses a hex string as input
+    """
     # Hexadezimal-String in Bytes umwandeln
     ciphertext = bytes.fromhex(cypher_text)
 
@@ -143,41 +169,48 @@ def brute_force_xor_cypher(
         if filter_non_ascii:
             plaintext = decrypt_xor(ciphertext, key)
             if all(
-                    32 <= ord(c) <= 126 or ord(c) in [10, 13] for c in plaintext
+                32 <= ord(c) <= 126 or ord(c) in [10, 13] for c in plaintext
             ):  # Prüfen auf druckbare ASCII-Zeichen
                 print(f"Schlüssel {key}: {plaintext}")
         else:
             print(f"Schlüssel {key}: {decrypt_xor(ciphertext, key)}")
 
 
-# Does execute xor_bitwise computation on two integers (either decimal or binary)
 def xor_bitwise(a: int, b: int, as_binary=False):
+    """
+    Does execute xor_bitwise computation on two integers (either decimal or binary)
+    """
     if as_binary:
         return bin(a ^ b)
     else:
         return a ^ b
 
 
-# Helper function to check if a number is prime or not
-def is_prime(n):
+def is_prime(n: int):
+    """
+    Helper function to check if a number is prime or not
+    """
     if n < 2:
         return False
-    for i in range(2, int(n ** 0.5) + 1):
+    for i in range(2, int(n**0.5) + 1):
         if n % i == 0:
             return False
     return True
 
 
 # Generates a prime number in a given range
-def generate_prime(min_val, max_val):
+def generate_prime(min_val: int, max_val: int):
     prime = random.randrange(min_val, max_val)
     while not is_prime(prime):
         prime = random.randrange(min_val, max_val)
     return prime
 
 
-# Mod inverse using the extended Euclidean algorithm
-def mod_inverse(e, phi):
+def calculate_mod_inverse(e: int, phi: int):
+    """
+    Mod inverse using the extended Euclidean algorithm
+    """
+
     def extended_gcd(a, b):
         if a == 0:
             return b, 0, 1
@@ -190,8 +223,10 @@ def mod_inverse(e, phi):
     return (x % phi + phi) % phi
 
 
-# Generates a RSA keypair
-def generate_rsa_keypair(p=generate_prime(10, 1000), q=generate_prime(10, 1000), e=0):
+def get_rsa_keypair(p=generate_prime(10, 1000), q=generate_prime(10, 1000), e=0):
+    """
+    Generates a RSA keypair
+    """
     n = p * q
 
     print(f"N: {n}")
@@ -203,7 +238,7 @@ def generate_rsa_keypair(p=generate_prime(10, 1000), q=generate_prime(10, 1000),
         e = random.randrange(1, phi)
         while math.gcd(e, phi) != 1:
             e = random.randrange(1, phi)
-    d = mod_inverse(e, phi)
+    d = calculate_mod_inverse(e, phi)
 
     print(f"Mod inverse: {d}")
     print(f"Public key: ({e, n})")
@@ -213,6 +248,9 @@ def generate_rsa_keypair(p=generate_prime(10, 1000), q=generate_prime(10, 1000),
 
 
 def rsa_encrypt_decrypt(message: int, key: tuple):
+    """
+    Encrypts or decrypts a message using the RSA algorithm. Key is a tuple with the key and the modulus
+    """
     key, n = key
     output = pow(message, key, n)
     print(f"Original message: {message}")
@@ -220,8 +258,23 @@ def rsa_encrypt_decrypt(message: int, key: tuple):
     return pow(message, key, n)
 
 
-# Creates the diffie hellman key exchange
+def brute_force_rsa_private_key(e, n, encrypted):
+    """
+    Brute force the private key of an RSA encrypted message by trying out all possible values
+    """
+    possible_keys = []
+    for i in range(1000):
+        if pow(i, e, n) == encrypted:
+            possible_keys.append(i)
+            print(f"Possibility: {i}")
+
+    return possible_keys
+
+
 def diffie_hellman(g: int, p: int, alice_private: int, bob_private: int) -> tuple:
+    """
+    Creates the diffie hellman key exchange
+    """
     alice_public = pow(g, alice_private, p)
     bob_public = pow(g, bob_private, p)
 
@@ -229,7 +282,7 @@ def diffie_hellman(g: int, p: int, alice_private: int, bob_private: int) -> tupl
     secret_bob = pow(alice_public, bob_private, p)
 
     assert (
-            secret_alice == secret_bob
+        secret_alice == secret_bob
     ), "Fehler: Die berechneten Geheimnisse stimmen nicht überein!"
 
     print(f"Alice: {alice_public}, Bob: {bob_public}, Geheimnis: {secret_alice}")
@@ -237,16 +290,20 @@ def diffie_hellman(g: int, p: int, alice_private: int, bob_private: int) -> tupl
     return alice_public, bob_public, secret_alice
 
 
-# Brute force the private key of Alice by trying all possible values
-def diffie_hellman_brute_force(g: int, p: int, alice_public: int) -> int:
+def diffie_hellman_brute_force_private_key(g: int, p: int, alice_public: int) -> int:
+    """
+    Brute force the private key of Alice/Bob by trying all possible values
+    """
     for i in range(1000):
         if pow(g, i, p) == alice_public:
             print(f"Alice's privater Schlüssel: {i}")
             return i
 
 
-# calculate amount of additions, doubles and the operations for a scalar multiplication
 def analyze_scalar_multiplication(number: int):
+    """
+    Calculate amount of additions, doubles and operations for a scalar multiplication of a specific number
+    """
     binary = bin(number)[2:]
     print(binary)
 
@@ -276,71 +333,59 @@ def analyze_scalar_multiplication(number: int):
 
 
 def calculate_amount_key_exchanges_symmetric(n: int):
+    """
+    Calculate the amount of key exchanges for a symmetric key
+    """
     return (n * (n - 1)) / 2
 
 
 def calculate_amount_key_exchanges_asymmetric(n: int):
+    """
+    Calculate the amount of key exchanges for an asymmetric key
+    """
     return n
 
 
 def generate_tbs_hash():
     """
-    Generate the TBS hash of the certificate (ca_cert.pem file) using SHA256
+    Generate the TBS (to be signed) hash of the certificate (ca_cert.pem file) using SHA256
     """
+    # Load the certificate
     with open("ca_cert.pem", "rb") as f:
         certificate_pem = f.read()
-
-    # calculate sha256 fingerprint on "to be signed" part of certificate
-
     certificate = x509.load_pem_x509_certificate(certificate_pem)
 
     # Get the part of the certificate which we want to hash, is already in DER encoding internally
     tbs_hash = certificate.tbs_certificate_bytes
 
-    # Create an object which will be used to hash the certificate
-    tbs_hash_value = hashes.Hash(hashes.SHA256())
-
-    # Feed the bytes of the certificate to the hash object
-    tbs_hash_value.update(tbs_hash)
-
     # Calculate the hash
-    tbs_hash_digest = tbs_hash_value.finalize()
+    tbs_hash_hex = hashlib.sha256(tbs_hash).hexdigest()
 
-    # Convert to hex for readable format
-    tbs_hash_hex = tbs_hash_digest.hex()
     print(f"TBS Certificate Hash (SHA256): {tbs_hash_hex}")
+    return tbs_hash_hex
 
 
 def generate_certificate_hash():
     """
     Generate the SHA1 fingerprint of the whole certificate (ca_cert.pem file)
-    :return:
     """
+    # Load the certificate
     with open("ca_cert.pem", "rb") as f:
         certificate_pem = f.read()
-
-    # calculate sha fingeprint on whole certificate
-
     certificate = x509.load_pem_x509_certificate(certificate_pem)
 
-    # Create SHA1 hash object instead of SHA256
-    sha1_hash = hashes.Hash(hashes.SHA1())
+    # Calculate hash in hex format
+    sha1_hex = hashlib.sha1(
+        certificate.public_bytes(serialization.Encoding.DER)
+    ).hexdigest()
 
-    # Use the entire certificate bytes instead of just tbs_certificate_bytes
-    sha1_hash.update(certificate.public_bytes(serialization.Encoding.DER))
-
-    # Calculate the hash
-    sha1_digest = sha1_hash.finalize()
-
-    # Convert to hex
-    sha1_hex = sha1_digest.hex()
     print(f"Certificate SHA1 Fingerprint: {sha1_hex}")
+    return sha1_hex
 
 
 def get_headers_of_url(url: str):
     """
     Get the headers of a URL
-    :param url: The URL to get the headers from
     """
     response = requests.head(url)
     headers = response.headers
@@ -348,14 +393,12 @@ def get_headers_of_url(url: str):
     for key, value in headers.items():
         print(f"{key}: {value}")
 
+    return headers.items()
+
 
 def hotp(secret: str, count: int, digits=6):
     """
-    Generate a HOTP code based on the secret and counter
-    :param secret: The secret key (in string format) --> DO NOT INPUT A BASE32 STRING
-    :param count: The counter value
-    :param digits: The number of digits of the code
-    :return:
+    Generate a HOTP code based on the secret and counter. The secret should be decoded and not in base32 format.
     """
     # Convert counter to 8-byte big-endian representation
     counter = count.to_bytes(8, byteorder="big")
@@ -366,27 +409,66 @@ def hotp(secret: str, count: int, digits=6):
     offset = hmac_hash[-1] & 0xF
     # Generate 4-byte code using offset
     code = (
-            (hmac_hash[offset] & 0x7F) << 24
-            | (hmac_hash[offset + 1] & 0xFF) << 16
-            | (hmac_hash[offset + 2] & 0xFF) << 8
-            | (hmac_hash[offset + 3] & 0xFF)
+        (hmac_hash[offset] & 0x7F) << 24
+        | (hmac_hash[offset + 1] & 0xFF) << 16
+        | (hmac_hash[offset + 2] & 0xFF) << 8
+        | (hmac_hash[offset + 3] & 0xFF)
     )
     # Return truncated code
-    return code % (10 ** digits)
+    output_code = code % (10**digits)
+    print(f"Code: {output_code}")
+    return output_code
 
 
 def totp(secret: str, time_step=30, digits=6, unix_timestamp=int(time.time())):
     """
     Generate a TOTP code based on the secret and the current time
-    :param secret: The secret key (in string format) --> DO NOT INPUT A BASE32 STRING
-    :param time_step: The time step in seconds
-    :param digits: The number of digits of the code
-    :param unix_timestamp: The timestamp to use
-    :return:
     """
     # Calculate counter based on current time and time step
     counter = unix_timestamp // time_step
     # Generate HOTP code
     return hotp(secret, counter, digits)
 
-# TODO MAIL
+
+def check_cipher_support(cipher: str, hostname="www.bfh.ch", port=443):
+    """
+    Check if a specific cipher is supported by a server.
+    """
+    context = ssl.SSLContext()
+    context.set_ciphers(cipher)
+
+    try:
+        with socket.create_connection((hostname, port)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                # Get the cipher actually used
+                used_cipher = ssock.cipher()
+                print(f"Cipher {used_cipher[0]} is supported")
+                return True
+
+    except ssl.SSLError as e:
+        print(f"Cipher not supported: {str(e)}")
+        return False
+    except socket.error as e:
+        print(f"Connection error: {str(e)}")
+        return False
+
+
+def get_tls_version(hostname="www.bfh.ch", port=443):
+    """
+    Check if a specific cipher is supported by a server.
+    """
+    context = ssl.SSLContext()
+
+    try:
+        with socket.create_connection((hostname, port)) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                # get the tls version
+                print(f"TLS version: {ssock.version()}")
+                return ssock.version()
+
+    except ssl.SSLError as e:
+        print(e)
+        return None
+    except socket.error as e:
+        print(e)
+        return None

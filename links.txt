@@ -1,0 +1,13 @@
+cyberchef
+https://gchq.github.io/CyberChef/
+
+skytale
+https://dencode.com/cipher/scytale
+https://kryptografie.de/kryptografie/chiffre/skytale.htm
+
+vigenere
+https://kryptografie.de/kryptografie/kryptoanalyse/2-3-1-schluessellaenge-bestimmen.htm
+https://kryptografie.de/kryptografie/kryptoanalyse/2-3-2-brechen-von-vigenere-mittels-schluesselrekonstruktion.htm
+
+TLS
+https://www.ssllabs.com/
